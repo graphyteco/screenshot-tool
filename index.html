@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relume Screenshot Framer</title>
+<style>
+/* ── Relume NOVA tokens ── */
+:root {
+  /* Light mode (default) */
+  --bg:           #F1F0EE;
+  --surface:      rgba(241,240,238,0.95);
+  --surface-2:    rgba(22,22,22,0.04);
+  --surface-3:    rgba(22,22,22,0.07);
+  --border:       rgba(22,22,22,0.10);
+  --border-2:     rgba(22,22,22,0.18);
+  --text-1:       #161616;
+  --text-2:       #5C5C5C;
+  --text-3:       #A8A8A8;
+  --brand:        #6248FF;
+  --brand-subtle: rgba(98,72,255,0.08);
+  --brand-hover:  rgba(98,72,255,0.14);
+  --shadow-canvas: 0 0 0 1px rgba(22,22,22,0.12), 0 8px 32px rgba(22,22,22,0.12);
+  --radius-sm:    4px;
+  --radius:       6px;
+  --radius-md:    8px;
+  --radius-lg:    12px;
+}
+
+[data-theme="dark"] {
+  --bg:           #111110;
+  --surface:      rgba(20,20,18,0.98);
+  --surface-2:    rgba(255,255,255,0.05);
+  --surface-3:    rgba(255,255,255,0.09);
+  --border:       rgba(255,255,255,0.10);
+  --border-2:     rgba(255,255,255,0.17);
+  --text-1:       #F1F0EE;
+  --text-2:       #7A7A7A;
+  --text-3:       #444442;
+  --shadow-canvas: 0 0 0 1px rgba(255,255,255,0.08), 0 24px 80px rgba(0,0,0,0.7);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Relative', 'Relative Medium', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0px;
+  background: var(--bg);
+  color: var(--text-1);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.2s, color 0.2s;
+}
+
+/* ── Upload Screen ── */
+#upload-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg);
+  transition: background 0.2s;
+}
+
+.upload-wordmark {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-2);
+  margin-bottom: 28px;
+}
+
+#drop-zone {
+  width: 460px;
+  height: 300px;
+  border: 1px dashed var(--border-2);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  gap: 10px;
+  background: var(--surface);
+}
+#drop-zone:hover, #drop-zone.dragover {
+  border-color: var(--brand);
+  background: var(--brand-subtle);
+}
+#drop-zone.dragover { border-style: solid; }
+
+.upload-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
+#drop-zone h2 {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+#drop-zone p {
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.btn-upload {
+  margin-top: 6px;
+  height: 32px;
+  padding: 0 12px;
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn-upload:hover { opacity: 0.85; }
+
+#file-input { display: none; }
+
+/* ── Editor ── */
+#editor {
+  display: none;
+  flex: 1;
+  flex-direction: row;
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* ── Panel ── */
+#panel {
+  width: 248px;
+  min-width: 248px;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.panel-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 16px 0;
+}
+.panel-logo {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+.panel-sub {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text-1);
+}
+
+/* Theme toggle */
+.theme-toggle {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius);
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.theme-toggle:hover { background: var(--surface-3); color: var(--text-1); }
+.theme-toggle svg { width: 14px; height: 14px; }
+.icon-sun { display: block; }
+.icon-moon { display: none; }
+[data-theme="dark"] .icon-sun { display: none; }
+[data-theme="dark"] .icon-moon { display: block; }
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0 -12px;
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 8px;
+}
+
+.section { display: flex; flex-direction: column; gap: 6px; }
+
+/* Slider */
+.slider-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.slider-row { display: flex; align-items: center; gap: 10px; }
+.slider-label { font-size: 13px; color: var(--text-2); width: 34px; flex-shrink: 0; }
+
+input[type="range"] {
+  flex: 1;
+  appearance: none;
+  height: 3px;
+  background: var(--surface-3);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--brand);
+  cursor: grab;
+  box-shadow: 0 0 0 3px var(--brand-subtle);
+  transition: box-shadow 0.15s;
+}
+input[type="range"]:hover::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--brand-hover); }
+input[type="range"]:active::-webkit-slider-thumb { cursor: grabbing; }
+
+.slider-val {
+  font-size: 12px;
+  color: var(--text-3);
+  min-width: 36px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.action-group {
+  display: flex;
+  flex-grow: 1;
+  gap: 4px;
+}
+
+/* Buttons — NOVA Button V3 */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  position: relative;
+}
+
+/* Secondary / Ghost — transparent bg, subtle border, primary text */
+.btn-ghost {
+  background: transparent;
+  color: var(--text-1);
+  border-color: var(--border);
+}
+.btn-ghost:hover {
+  background: linear-gradient(rgba(22,22,22,0.06), rgba(22,22,22,0.06)), var(--bg);
+}
+[data-theme="dark"] .btn-ghost:hover {
+  background: linear-gradient(rgba(255,255,255,0.08), rgba(255,255,255,0.08)), var(--bg);
+}
+
+/* Primary / Brand — filled orange, white overlay on hover */
+.btn-orange {
+  background: var(--brand);
+  color: #fff;
+  border-color: transparent;
+  width: 100%;
+}
+.btn-orange:hover {
+  background: linear-gradient(rgba(255,255,255,0.16), rgba(255,255,255,0.16)), var(--brand);
+}
+
+/* Outline — same as secondary */
+.btn-outline {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-1);
+}
+.btn-outline:hover {
+  background: linear-gradient(rgba(22,22,22,0.06), rgba(22,22,22,0.06)), var(--bg);
+}
+[data-theme="dark"] .btn-outline:hover {
+  background: linear-gradient(rgba(255,255,255,0.08), rgba(255,255,255,0.08)), var(--bg);
+}
+
+/* Tool buttons */
+.tools-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
+
+.tool-btn {
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.tool-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+.tool-btn:hover { background: var(--surface-3); border-color: var(--border-2); color: var(--text-2); }
+.tool-btn.active { background: var(--brand-subtle); border-color: var(--brand); color: var(--brand); }
+
+.tool-hint {
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.5;
+  margin: 8px 0 0 0;
+}
+
+/* ── Canvas Area ── */
+#canvas-area {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 32px;
+}
+
+#preview-canvas {
+  display: block;
+  border-radius: var(--radius-sm);
+  cursor: default;
+}
+
+/* Scrollbars */
+.panel-body::-webkit-scrollbar { width: 3px; }
+.panel-body::-webkit-scrollbar-track { background: transparent; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 2px; }
+#canvas-area::-webkit-scrollbar { width: 5px; height: 5px; }
+#canvas-area::-webkit-scrollbar-track { background: transparent; }
+#canvas-area::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- Upload Screen -->
+<div id="upload-screen">
+  <button class="theme-toggle" id="theme-toggle-upload" title="Toggle light/dark mode" style="position:absolute;top:16px;right:16px;">
+    <svg class="icon-sun" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <circle cx="7" cy="7" r="2.5"/><path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.93 2.93l1.06 1.06M10.01 10.01l1.06 1.06M2.93 11.07l1.06-1.06M10.01 3.99l1.06-1.06"/>
+    </svg>
+    <svg class="icon-moon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <path d="M12 8.5A5.5 5.5 0 1 1 5.5 2a4 4 0 0 0 6.5 6.5z"/>
+    </svg>
+  </button>
+  <div id="drop-zone">
+    <div class="upload-icon">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+        <path d="M13 5v12M7 11l6-6 6 6" stroke="#6248FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M5 20h16" stroke="#666" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h2>Drop your screenshot here</h2>
+    <p>PNG, JPG, or WebP — or <strong style="color:var(--text-2)">paste</strong> from clipboard</p>
+    <button class="btn-upload" id="browse-btn">Choose File</button>
+  </div>
+  <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp">
+</div>
+
+<!-- Editor -->
+<div id="editor">
+
+  <!-- Left Panel -->
+  <div id="panel">
+
+    <div class="panel-header">
+      <div class="panel-header-left">
+        <div class="panel-sub">Screenshot Framer</div>
+      </div>
+      <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode">
+        <svg class="icon-sun" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <circle cx="7" cy="7" r="2.5"/><path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.93 2.93l1.06 1.06M10.01 10.01l1.06 1.06M2.93 11.07l1.06-1.06M10.01 3.99l1.06-1.06"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M12 8.5A5.5 5.5 0 1 1 5.5 2a4 4 0 0 0 6.5 6.5z"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="panel-body">
+
+    <!-- Screenshot controls -->
+    <div class="section">
+      <div class="slider-group">
+        <div class="slider-row">
+          <span class="slider-label">Zoom</span>
+          <input type="range" id="zoom-slider" min="10" max="250" value="100" step="1">
+          <span class="slider-val" id="zoom-val">100%</span>
+        </div>
+      </div>
+      <button class="btn btn-ghost" id="reset-btn">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M11 6.5A4.5 4.5 0 1 1 6.5 2"/><path d="M9 2h2.5V4.5"/>
+        </svg>
+        Reset Position &amp; Zoom
+      </button>
+      <button class="btn btn-ghost" id="change-image-btn">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1.5" y="1.5" width="10" height="10" rx="2"/><path d="M1.5 8.5L4 6l2.5 2.5L8.5 6l3 3"/>
+        </svg>
+        Change Image
+      </button>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Annotation tools -->
+    <div class="section">
+      <div class="tools-grid">
+        <button class="tool-btn active" id="tool-btn-select" onclick="setTool('select')">
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 2l10 7-5 1.5 1.5 5-2 1L7 11 3 13.5z" fill="currentColor" stroke="none"/>
+          </svg>
+          Select
+        </button>
+        <button class="tool-btn" id="tool-btn-highlight" onclick="setTool('highlight')">
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="14" height="14" rx="3"/>
+          </svg>
+          Box
+        </button>
+        <button class="tool-btn" id="tool-btn-arrow" onclick="setTool('arrow')">
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 9h12M10 5l4 4-4 4"/>
+          </svg>
+          Arrow
+        </button>
+      </div>
+      <button class="btn btn-ghost" id="clear-btn">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M2 2l9 9M11 2l-9 9"/>
+        </svg>
+        Clear All Annotations
+      </button>
+      <div class="tool-hint" id="tool-hint">Drag the screenshot to reposition. Click an annotation to select it.</div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Export -->
+    <div class="section">
+      <div class="action-group">
+        <button class="btn btn-orange" id="download-btn">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6.5 2v7M3.5 6.5l3 3 3-3"/><path d="M2 10.5h9"/>
+          </svg>
+          Download
+        </button>
+        <button class="btn btn-outline" id="clipboard-btn">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="1" width="8" height="9" rx="1.5"/><path d="M2 4H1.5A.5.5 0 0 0 1 4.5v7A.5.5 0 0 0 1.5 12h7a.5.5 0 0 0 .5-.5V11"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    </div><!-- /panel-body -->
+  </div>
+
+  <!-- Canvas Area -->
+  <div id="canvas-area">
+    <canvas id="preview-canvas"></canvas>
+  </div>
+
+</div>
+
+<script>
+// ─── Canvas constants (full resolution) ──────────────────────────────────────
+const CW = 3040, CH = 1580;           // output canvas size
+const FW = 2704, FH = 1340;           // white frame size
+const FX = (CW - FW) / 2;            // 168px — frame left
+const FY = (CH - FH) / 2;            // 120px — frame top
+const BG_COLOR  = '#D8D6D3';
+const FRAME_BG  = '#FFFFFF';
+const FRAME_R   = 16;                 // border-radius (2x of 8px Figma)
+const ANNO_CLR  = '#FF7448';
+const ANNO_LINE = 6;                  // stroke width (2x of 3px)
+const ANNO_R    = 16;                 // annotation border-radius (2x of 8px)
+const ARROW_DEFAULT_W = 320;         // default arrow width in full-res px
+const ARROW_DEFAULT_H = 100;         // default arrow height in full-res px
+const DEL_BTN_R = 18;               // delete button radius in full-res px
+const HANDLE_R  = 14;               // resize handle radius in full-res px
+const HANDLE_CURSORS = {
+  nw: 'nw-resize', n: 'n-resize', ne: 'ne-resize',
+  e:  'e-resize',  se: 'se-resize', s: 's-resize',
+  sw: 'sw-resize', w: 'w-resize'
+};
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let img       = null;
+let fitScale  = 1;    // scale to fit image inside frame
+let zoom      = 1.0;  // user zoom multiplier (1 = fit)
+let imgOffX   = 0;    // image center offset X (full-res px)
+let imgOffY   = 0;    // image center offset Y (full-res px)
+let annotations = [];  // [{type,x,y,w?,h?}]
+let activeTool    = 'select';
+let selectedAnno  = -1;
+let hoveredAnno   = -1;
+let previewScale  = 0.4;
+
+// Drag state
+let drag = {
+  active: false,
+  type: null,     // 'img' | 'anno' | 'draw' | 'resize'
+  startX: 0, startY: 0,
+  imgStartX: 0, imgStartY: 0,
+  annoIdx: -1,
+  annoStartX: 0, annoStartY: 0,
+  liveRect: null, // for 'draw' type
+  handleId: null, // for 'resize' type
+  origRect: null, // for 'resize' type
+};
+
+// ─── Elements ─────────────────────────────────────────────────────────────────
+const uploadScreen  = document.getElementById('upload-screen');
+const editorEl      = document.getElementById('editor');
+const dropZone      = document.getElementById('drop-zone');
+const fileInput     = document.getElementById('file-input');
+const browseBtn     = document.getElementById('browse-btn');
+const previewCanvas = document.getElementById('preview-canvas');
+const ctx           = previewCanvas.getContext('2d');
+const zoomSlider    = document.getElementById('zoom-slider');
+const zoomValEl     = document.getElementById('zoom-val');
+
+// ─── Upload ───────────────────────────────────────────────────────────────────
+browseBtn.addEventListener('click', e => { e.stopPropagation(); fileInput.click(); });
+dropZone.addEventListener('click', () => fileInput.click());
+
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f) loadFile(f);
+});
+
+fileInput.addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); fileInput.value = ''; });
+document.getElementById('change-image-btn').addEventListener('click', () => fileInput.click());
+
+// Paste from clipboard (works on upload screen and in editor)
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'v' || e.key === 'V') setTool('select');
+});
+
+document.addEventListener('paste', e => {
+  const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      loadFile(item.getAsFile());
+      break;
+    }
+  }
+});
+
+function loadFile(file) {
+  if (!file || !file.type.match(/^image\/(png|jpeg|webp)$/)) return;
+  const url = URL.createObjectURL(file);
+  const image = new Image();
+  image.onload = () => {
+    img = image;
+    URL.revokeObjectURL(url);
+    resetPositionInternal();
+    uploadScreen.style.display = 'none';
+    editorEl.style.display    = 'flex';
+    setupCanvas();
+    render();
+  };
+  image.src = url;
+}
+
+// ─── Canvas Setup ─────────────────────────────────────────────────────────────
+function setupCanvas() {
+  const area = document.getElementById('canvas-area');
+  const aw = area.clientWidth  - 48;
+  const ah = area.clientHeight - 48;
+  previewScale = Math.min(aw / CW, ah / CH, 0.5);
+  const dpr  = window.devicePixelRatio || 1;
+  const cssW = Math.round(CW * previewScale);
+  const cssH = Math.round(CH * previewScale);
+  previewCanvas.style.width  = cssW + 'px';
+  previewCanvas.style.height = cssH + 'px';
+  previewCanvas.width  = Math.round(cssW * dpr);
+  previewCanvas.height = Math.round(cssH * dpr);
+}
+
+window.addEventListener('resize', () => { if (img) { setupCanvas(); render(); } });
+
+// ─── Position & Zoom ──────────────────────────────────────────────────────────
+function resetPositionInternal() {
+  if (!img) return;
+  fitScale = Math.min(FW / img.width, FH / img.height);
+  zoom = 1;
+  imgOffX = 0;
+  imgOffY = 0;
+  zoomSlider.value = 100;
+  zoomValEl.textContent = '100%';
+}
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+  resetPositionInternal();
+  render();
+});
+
+zoomSlider.addEventListener('input', () => {
+  zoom = parseInt(zoomSlider.value) / 100;
+  zoomValEl.textContent = zoomSlider.value + '%';
+  render();
+});
+
+// ─── Tool Selection ───────────────────────────────────────────────────────────
+const TOOL_HINTS = {
+  select:    'Drag the screenshot to reposition it. Click an annotation to select and drag it.',
+  highlight: 'Click and drag on the canvas to draw a highlight box around an area.',
+  arrow:     'Click anywhere on the canvas to place an arrow. Then use Select to move it.'
+};
+
+function setTool(t) {
+  activeTool   = t;
+  selectedAnno = -1;
+  hoveredAnno  = -1;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tool-btn-' + t).classList.add('active');
+  document.getElementById('tool-hint').textContent = TOOL_HINTS[t];
+  updateCursor(t === 'select' ? 'default' : 'crosshair');
+  render();
+}
+
+function updateCursor(c) { previewCanvas.style.cursor = c; }
+
+document.getElementById('clear-btn').addEventListener('click', () => {
+  annotations  = [];
+  selectedAnno = -1;
+  hoveredAnno  = -1;
+  render();
+});
+
+// ─── Rendering ────────────────────────────────────────────────────────────────
+function render(liveRect) {
+  const dpr = window.devicePixelRatio || 1;
+  const s = previewScale * dpr;
+  ctx.save();
+  ctx.scale(s, s);
+
+  // Background
+  ctx.fillStyle = BG_COLOR;
+  ctx.fillRect(0, 0, CW, CH);
+
+  // Frame shadow (drawn before clip so it's not masked)
+  drawFrameShadow(ctx, 'rgba(0,0,0,0.08)', 0, 40, 48);
+  drawFrameShadow(ctx, 'rgba(0,0,0,0.03)', 0, 16, 16);
+
+  // Frame + clipped content
+  ctx.save();
+  roundRectPath(ctx, FX, FY, FW, FH, FRAME_R);
+  ctx.clip();
+
+  // White background
+  ctx.fillStyle = FRAME_BG;
+  ctx.fillRect(FX, FY, FW, FH);
+
+  // Screenshot
+  if (img) drawScreenshot(ctx);
+
+  // Annotations (inside frame clip = clipped at frame edges)
+  annotations.forEach((a, i) => drawAnnotation(ctx, a, i, false));
+
+  // Live highlight preview during draw
+  if (liveRect) {
+    const {x, y, w, h} = normalizeRect(liveRect);
+    if (w > 4 && h > 4) {
+      ctx.strokeStyle  = ANNO_CLR;
+      ctx.lineWidth    = ANNO_LINE;
+      ctx.lineJoin     = 'round';
+      ctx.globalAlpha  = 0.7;
+      roundRectPath(ctx, x, y, w, h, ANNO_R);
+      ctx.stroke();
+      ctx.globalAlpha  = 1;
+    }
+  }
+
+  ctx.restore(); // remove frame clip
+
+  // Annotation overlays: delete buttons + selection rings (above frame clip)
+  annotations.forEach((a, i) => drawAnnotation(ctx, a, i, true));
+
+  ctx.restore(); // remove scale
+}
+
+function drawFrameShadow(ctx, color, ox, oy, blur) {
+  ctx.save();
+  ctx.shadowColor   = color;
+  ctx.shadowOffsetX = ox;
+  ctx.shadowOffsetY = oy;
+  ctx.shadowBlur    = blur;
+  ctx.fillStyle     = '#fff';
+  roundRectPath(ctx, FX, FY, FW, FH, FRAME_R);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawScreenshot(ctx) {
+  const iw = img.width  * fitScale * zoom;
+  const ih = img.height * fitScale * zoom;
+  const ix = FX + FW / 2 - iw / 2 + imgOffX;
+  const iy = FY + FH / 2 - ih / 2 + imgOffY;
+  ctx.drawImage(img, ix, iy, iw, ih);
+}
+
+function drawAnnotation(ctx, a, i, overlayOnly) {
+  const isSelected = selectedAnno === i;
+  const isHovered  = hoveredAnno  === i;
+  const showUI     = isSelected || isHovered;
+
+  if (!overlayOnly) {
+    if (a.type === 'highlight') {
+      ctx.strokeStyle = ANNO_CLR;
+      ctx.lineWidth   = ANNO_LINE;
+      ctx.lineJoin    = 'round';
+      roundRectPath(ctx, a.x, a.y, a.w, a.h, ANNO_R);
+      ctx.stroke();
+    } else if (a.type === 'arrow') {
+      drawArrowShape(ctx, a.x, a.y, a.w, a.h);
+    }
+  }
+
+  if (overlayOnly && showUI) {
+    // Selection ring
+    if (isSelected) {
+      ctx.strokeStyle  = 'rgba(255,116,72,0.35)';
+      ctx.lineWidth    = 3;
+      ctx.setLineDash([8, 6]);
+      if (a.type === 'highlight') {
+        roundRectPath(ctx, a.x - 12, a.y - 12, a.w + 24, a.h + 24, ANNO_R + 6);
+        ctx.stroke();
+      } else if (a.type === 'arrow') {
+        roundRectPath(ctx, a.x - 12, a.y - 12, a.w + 24, a.h + 24, 8);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+
+      // Resize handles for both highlight and arrow
+      for (const h of getHandles(a)) {
+        ctx.fillStyle   = '#fff';
+        ctx.strokeStyle = ANNO_CLR;
+        ctx.lineWidth   = 4;
+        ctx.beginPath();
+        ctx.arc(h.cx, h.cy, HANDLE_R, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    // Delete button
+    const db = deleteButtonPos(a);
+    drawDeleteButton(ctx, db.x, db.y);
+  }
+}
+
+function drawArrowShape(ctx, x, y, w, h) {
+  // Left-pointing arrow, proportions from Figma asset (55×12 SVG)
+  // Arrowhead depth: 18% of width; shaft height: 16% of total height, centered
+  const aw = w * 0.18;
+  const st = h * 0.42;   // shaft top Y offset
+  const sb = h * 0.58;   // shaft bottom Y offset
+
+  const grad = ctx.createLinearGradient(x, 0, x + w, 0);
+  grad.addColorStop(0, '#FF7448');
+  grad.addColorStop(1, '#FF4848');
+  ctx.fillStyle = grad;
+
+  ctx.beginPath();
+  ctx.moveTo(x,       y + h / 2);  // tip
+  ctx.lineTo(x + aw,  y);           // arrowhead top
+  ctx.lineTo(x + aw,  y + st);      // shoulder top
+  ctx.lineTo(x + w,   y + st);      // shaft top-right
+  ctx.lineTo(x + w,   y + sb);      // shaft bottom-right
+  ctx.lineTo(x + aw,  y + sb);      // shoulder bottom
+  ctx.lineTo(x + aw,  y + h);       // arrowhead bottom
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawDeleteButton(ctx, x, y) {
+  ctx.fillStyle = '#e03030';
+  ctx.beginPath();
+  ctx.arc(x, y, DEL_BTN_R, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth   = 3;
+  ctx.lineCap     = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x - 7, y - 7); ctx.lineTo(x + 7, y + 7);
+  ctx.moveTo(x + 7, y - 7); ctx.lineTo(x - 7, y + 7);
+  ctx.stroke();
+}
+
+function deleteButtonPos(a) {
+  return { x: a.x + a.w + 4, y: a.y - 4 };
+}
+
+function roundRectPath(ctx, x, y, w, h, r) {
+  const rx = Math.min(r, Math.abs(w) / 2);
+  const ry = Math.min(r, Math.abs(h) / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rx, y);
+  ctx.lineTo(x + w - rx, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + ry);
+  ctx.lineTo(x + w, y + h - ry);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - rx, y + h);
+  ctx.lineTo(x + rx, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - ry);
+  ctx.lineTo(x, y + ry);
+  ctx.quadraticCurveTo(x, y, x + rx, y);
+  ctx.closePath();
+}
+
+function normalizeRect(r) {
+  return {
+    x: r.w < 0 ? r.x + r.w : r.x,
+    y: r.h < 0 ? r.y + r.h : r.y,
+    w: Math.abs(r.w),
+    h: Math.abs(r.h)
+  };
+}
+
+// ─── Resize handles ───────────────────────────────────────────────────────────
+function getHandles(a) {
+  if (a.type !== 'highlight' && a.type !== 'arrow') return [];
+  const { x, y, w, h } = a;
+  return [
+    { id: 'nw', cx: x,       cy: y       },
+    { id: 'n',  cx: x + w/2, cy: y       },
+    { id: 'ne', cx: x + w,   cy: y       },
+    { id: 'e',  cx: x + w,   cy: y + h/2 },
+    { id: 'se', cx: x + w,   cy: y + h   },
+    { id: 's',  cx: x + w/2, cy: y + h   },
+    { id: 'sw', cx: x,       cy: y + h   },
+    { id: 'w',  cx: x,       cy: y + h/2 },
+  ];
+}
+
+function hitTestHandle(x, y, annoIdx) {
+  if (annoIdx < 0) return null;
+  const a = annotations[annoIdx];
+  for (const h of getHandles(a)) {
+    if (Math.hypot(x - h.cx, y - h.cy) <= HANDLE_R + 8) return h.id;
+  }
+  return null;
+}
+
+// ─── Hit-testing ──────────────────────────────────────────────────────────────
+function canvasCoords(e) {
+  const rect = previewCanvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left)  / previewScale,
+    y: (e.clientY - rect.top)   / previewScale
+  };
+}
+
+function hitTestDeleteBtn(x, y) {
+  for (let i = 0; i < annotations.length; i++) {
+    if (i !== selectedAnno && i !== hoveredAnno) continue;
+    const db = deleteButtonPos(annotations[i]);
+    if (Math.hypot(x - db.x, y - db.y) <= DEL_BTN_R + 4) return i;
+  }
+  return -1;
+}
+
+function hitTestAnnotation(x, y) {
+  for (let i = annotations.length - 1; i >= 0; i--) {
+    const a = annotations[i];
+    if (a.type === 'highlight') {
+      const pad = 10;
+      if (x >= a.x - pad && x <= a.x + a.w + pad && y >= a.y - pad && y <= a.y + a.h + pad) return i;
+    } else if (a.type === 'arrow') {
+      if (x >= a.x && x <= a.x + a.w && y >= a.y && y <= a.y + a.h) return i;
+    }
+  }
+  return -1;
+}
+
+function isInFrame(x, y) {
+  return x >= FX && x <= FX + FW && y >= FY && y <= FY + FH;
+}
+
+// ─── Canvas Events ────────────────────────────────────────────────────────────
+previewCanvas.addEventListener('mousedown', e => {
+  e.preventDefault();
+  const p = canvasCoords(e);
+
+  // Check delete button first
+  const delIdx = hitTestDeleteBtn(p.x, p.y);
+  if (delIdx >= 0) {
+    annotations.splice(delIdx, 1);
+    selectedAnno = -1;
+    hoveredAnno  = -1;
+    render();
+    return;
+  }
+
+  if (activeTool === 'select') {
+    // Check resize handles on selected highlight first
+    const handleId = hitTestHandle(p.x, p.y, selectedAnno);
+    if (handleId) {
+      const a = annotations[selectedAnno];
+      drag.active   = true;
+      drag.type     = 'resize';
+      drag.annoIdx  = selectedAnno;
+      drag.startX   = p.x;
+      drag.startY   = p.y;
+      drag.handleId = handleId;
+      drag.origRect = { x: a.x, y: a.y, w: a.w, h: a.h };
+      updateCursor(HANDLE_CURSORS[handleId]);
+      render();
+      return;
+    }
+
+    const hit = hitTestAnnotation(p.x, p.y);
+    if (hit >= 0) {
+      selectedAnno = hit;
+      drag.active     = true;
+      drag.type       = 'anno';
+      drag.annoIdx    = hit;
+      drag.startX     = p.x;
+      drag.startY     = p.y;
+      drag.annoStartX = annotations[hit].x;
+      drag.annoStartY = annotations[hit].y;
+      updateCursor('grabbing');
+    } else {
+      selectedAnno = -1;
+      if (img && isInFrame(p.x, p.y)) {
+        drag.active   = true;
+        drag.type     = 'img';
+        drag.startX   = p.x;
+        drag.startY   = p.y;
+        drag.imgStartX = imgOffX;
+        drag.imgStartY = imgOffY;
+        updateCursor('grabbing');
+      }
+    }
+    render();
+
+  } else if (activeTool === 'highlight') {
+    if (isInFrame(p.x, p.y)) {
+      drag.active   = true;
+      drag.type     = 'draw';
+      drag.startX   = p.x;
+      drag.startY   = p.y;
+      drag.liveRect = { x: p.x, y: p.y, w: 0, h: 0 };
+    }
+
+  } else if (activeTool === 'arrow') {
+    // Place arrow centered on click
+    const ax = p.x - ARROW_DEFAULT_W / 2;
+    const ay = p.y - ARROW_DEFAULT_H / 2;
+    annotations.push({ type: 'arrow', x: ax, y: ay, w: ARROW_DEFAULT_W, h: ARROW_DEFAULT_H });
+    selectedAnno = annotations.length - 1;
+    render();
+    setTool('select');
+  }
+});
+
+previewCanvas.addEventListener('mousemove', e => {
+  const p = canvasCoords(e);
+
+  if (drag.active) {
+    const dx = p.x - drag.startX;
+    const dy = p.y - drag.startY;
+
+    if (drag.type === 'img') {
+      imgOffX = drag.imgStartX + dx;
+      imgOffY = drag.imgStartY + dy;
+      render();
+
+    } else if (drag.type === 'anno') {
+      annotations[drag.annoIdx].x = drag.annoStartX + dx;
+      annotations[drag.annoIdx].y = drag.annoStartY + dy;
+      render();
+
+    } else if (drag.type === 'resize') {
+      const dx = p.x - drag.startX;
+      const dy = p.y - drag.startY;
+      const o  = drag.origRect;
+      const h  = drag.handleId;
+      const MIN = 60;
+      let nx = o.x, ny = o.y, nw = o.w, nh = o.h;
+
+      if (h.includes('w')) { nx = o.x + dx; nw = o.w - dx; }
+      if (h.includes('e')) { nw = o.w + dx; }
+      if (h.includes('n')) { ny = o.y + dy; nh = o.h - dy; }
+      if (h.includes('s')) { nh = o.h + dy; }
+
+      if (nw < MIN) { if (h.includes('w')) nx = o.x + o.w - MIN; nw = MIN; }
+      if (nh < MIN) { if (h.includes('n')) ny = o.y + o.h - MIN; nh = MIN; }
+
+      const a = annotations[drag.annoIdx];
+      a.x = nx; a.y = ny; a.w = nw; a.h = nh;
+      render();
+
+    } else if (drag.type === 'draw') {
+      drag.liveRect.w = p.x - drag.startX;
+      drag.liveRect.h = p.y - drag.startY;
+      render(drag.liveRect);
+    }
+
+  } else {
+    // Hover detection
+    const hit = hitTestAnnotation(p.x, p.y);
+    if (hit !== hoveredAnno) {
+      hoveredAnno = hit;
+      render();
+    }
+
+    // Cursor
+    if (activeTool === 'select') {
+      const handleId = hitTestHandle(p.x, p.y, selectedAnno);
+      const delHit   = hitTestDeleteBtn(p.x, p.y);
+      if (handleId) {
+        updateCursor(HANDLE_CURSORS[handleId]);
+      } else if (delHit >= 0) {
+        updateCursor('pointer');
+      } else if (hit >= 0) {
+        updateCursor('grab');
+      } else if (img && isInFrame(p.x, p.y)) {
+        updateCursor('grab');
+      } else {
+        updateCursor('default');
+      }
+    }
+  }
+});
+
+previewCanvas.addEventListener('mouseup', e => {
+  if (drag.active && drag.type === 'draw' && drag.liveRect) {
+    const r = normalizeRect(drag.liveRect);
+    if (r.w > 20 && r.h > 20) {
+      // Clamp to frame
+      const x = Math.max(FX, r.x);
+      const y = Math.max(FY, r.y);
+      const w = Math.min(FX + FW, r.x + r.w) - x;
+      const h = Math.min(FY + FH, r.y + r.h) - y;
+      if (w > 20 && h > 20) {
+        annotations.push({ type: 'highlight', x, y, w, h });
+        selectedAnno = annotations.length - 1;
+      }
+    }
+    drag.liveRect = null;
+  }
+
+  if (drag.type === 'img' || drag.type === 'anno' || drag.type === 'resize') {
+    updateCursor(activeTool === 'select' ? 'default' : 'crosshair');
+  }
+
+  drag.active = false;
+  drag.type   = null;
+  render();
+});
+
+previewCanvas.addEventListener('mouseleave', () => {
+  if (drag.active && drag.type === 'draw') {
+    drag.active   = false;
+    drag.liveRect = null;
+  } else {
+    drag.active = false;
+  }
+  hoveredAnno = -1;
+  updateCursor('default');
+  render();
+});
+
+// Keyboard: Delete/Backspace removes selected annotation
+document.addEventListener('keydown', e => {
+  if (!img) return;
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selectedAnno >= 0) {
+    const tag = document.activeElement.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    annotations.splice(selectedAnno, 1);
+    selectedAnno = -1;
+    render();
+  }
+  if (e.key === 'Escape') {
+    selectedAnno = -1;
+    setTool('select');
+    render();
+  }
+});
+
+// ─── Full-res Render (for export) ─────────────────────────────────────────────
+function renderFullRes() {
+  const oc   = document.createElement('canvas');
+  oc.width   = CW;
+  oc.height  = CH;
+  const octx = oc.getContext('2d');
+
+  // Background
+  octx.fillStyle = BG_COLOR;
+  octx.fillRect(0, 0, CW, CH);
+
+  // Frame shadow (drawn before clip so it's not masked)
+  [
+    { color: 'rgba(0,0,0,0.08)', oy: 40, blur: 48 },
+    { color: 'rgba(0,0,0,0.03)', oy: 16, blur: 16 },
+  ].forEach(({ color, oy, blur }) => {
+    octx.save();
+    octx.shadowColor   = color;
+    octx.shadowOffsetX = 0;
+    octx.shadowOffsetY = oy;
+    octx.shadowBlur    = blur;
+    octx.fillStyle     = '#fff';
+    roundRectPath(octx, FX, FY, FW, FH, FRAME_R);
+    octx.fill();
+    octx.restore();
+  });
+
+  // Frame clip
+  octx.save();
+  roundRectPath(octx, FX, FY, FW, FH, FRAME_R);
+  octx.clip();
+
+  octx.fillStyle = FRAME_BG;
+  octx.fillRect(FX, FY, FW, FH);
+
+  if (img) {
+    const iw = img.width  * fitScale * zoom;
+    const ih = img.height * fitScale * zoom;
+    octx.drawImage(img, FX + FW/2 - iw/2 + imgOffX, FY + FH/2 - ih/2 + imgOffY, iw, ih);
+  }
+
+  annotations.forEach(a => {
+    if (a.type === 'highlight') {
+      octx.strokeStyle = ANNO_CLR;
+      octx.lineWidth   = ANNO_LINE;
+      octx.lineJoin    = 'round';
+      roundRectPath(octx, a.x, a.y, a.w, a.h, ANNO_R);
+      octx.stroke();
+    } else if (a.type === 'arrow') {
+      drawArrowShape(octx, a.x, a.y, a.w, a.h);
+    }
+  });
+
+  octx.restore();
+  return oc;
+}
+
+// ─── Export ───────────────────────────────────────────────────────────────────
+document.getElementById('download-btn').addEventListener('click', () => {
+  const oc   = renderFullRes();
+  const link = document.createElement('a');
+  link.download = 'relume-screenshot.jpg';
+  link.href     = oc.toDataURL('image/jpeg', 0.92);
+  link.click();
+});
+
+document.getElementById('clipboard-btn').addEventListener('click', async () => {
+  const btn  = document.getElementById('clipboard-btn');
+  const orig = btn.innerHTML;
+
+  try {
+    const oc = renderFullRes();
+    const blob = await new Promise(res => oc.toBlob(res, 'image/png'));
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7l3 3 6-6"/></svg>';
+    setTimeout(() => btn.innerHTML = orig, 2500);
+  } catch (err) {
+    btn.innerHTML = 'Failed — try Download';
+    setTimeout(() => btn.innerHTML = orig, 2500);
+    console.error(err);
+  }
+});
+
+// Expose setTool globally for onclick handlers
+window.setTool = setTool;
+
+// ─── Theme toggle ─────────────────────────────────────────────────────────────
+const saved = localStorage.getItem('relume-theme');
+if (saved) document.documentElement.setAttribute('data-theme', saved);
+
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const next = isDark ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('relume-theme', next);
+}
+
+document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+document.getElementById('theme-toggle-upload').addEventListener('click', toggleTheme);
+</script>
+</body>
+</html>
