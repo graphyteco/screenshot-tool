@@ -465,6 +465,44 @@ input[type="range"]:active::-webkit-slider-thumb {
   cursor: default;
 }
 
+/* ─── Icon buttons (undo, redo, theme toggle) ────────────────────────────── */
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--text-2);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.icon-btn:hover:not(:disabled) {
+  color: var(--text-1);
+  background: var(--surface-3);
+}
+
+.icon-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.icon-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.panel-header-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
 /* ─── Scrollbars ─────────────────────────────────────────────────────────── */
 
 .panel-body::-webkit-scrollbar {
@@ -533,15 +571,29 @@ input[type="range"]:active::-webkit-slider-thumb {
       <div class="panel-header-left">
         <div class="panel-sub">Screenshot Framer</div>
       </div>
-      <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode">
-        <svg class="icon-sun" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-          <circle cx="7" cy="7" r="2.5"/>
-          <path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.93 2.93l1.06 1.06M10.01 10.01l1.06 1.06M2.93 11.07l1.06-1.06M10.01 3.99l1.06-1.06"/>
-        </svg>
-        <svg class="icon-moon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-          <path d="M12 8.5A5.5 5.5 0 1 1 5.5 2a4 4 0 0 0 6.5 6.5z"/>
-        </svg>
-      </button>
+      <div class="panel-header-right">
+        <button class="icon-btn" id="undo-btn" title="Undo (⌘Z)" disabled>
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 5h6a4 4 0 0 1 0 8H5"/>
+            <path d="M2 2l-2 3 3 2"/>
+          </svg>
+        </button>
+        <button class="icon-btn" id="redo-btn" title="Redo (⌘⇧Z)" disabled>
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 5H6a4 4 0 0 0 0 8h3"/>
+            <path d="M12 2l2 3-3 2"/>
+          </svg>
+        </button>
+        <button class="icon-btn theme-toggle" id="theme-toggle" title="Toggle light/dark mode">
+          <svg class="icon-sun" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <circle cx="7" cy="7" r="2.5"/>
+            <path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.93 2.93l1.06 1.06M10.01 10.01l1.06 1.06M2.93 11.07l1.06-1.06M10.01 3.99l1.06-1.06"/>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <path d="M12 8.5A5.5 5.5 0 1 1 5.5 2a4 4 0 0 0 6.5 6.5z"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <div class="panel-body">
@@ -578,11 +630,6 @@ input[type="range"]:active::-webkit-slider-thumb {
         </button>
       </div>
 
-      <!-- Shown when no frame is selected -->
-      <div class="section" id="no-frame-hint">
-        <div class="tool-hint">Click a frame to select it. Drag inside to reposition the screenshot. Double-click the frame border to move the frame.</div>
-      </div>
-
       <hr class="divider">
 
       <!-- Annotation tools -->
@@ -613,7 +660,6 @@ input[type="range"]:active::-webkit-slider-thumb {
           </svg>
           Clear All Annotations
         </button>
-        <div class="tool-hint" id="tool-hint">Click a frame to select it, then drag to reposition the screenshot inside it.</div>
       </div>
 
       <hr class="divider">
@@ -704,6 +750,65 @@ let selectedAnno    = -1;
 let hoveredAnno     = -1;
 let previewScale    = 0.4;
 let replacingFrameId = null; // null = add new frame, frameId = replace that frame's image
+
+// ─── History ──────────────────────────────────────────────────────────────────
+
+const MAX_HISTORY   = 50;
+const imageRegistry = new Map(); // frameId → HTMLImageElement (images are never copied)
+let history         = [];
+let historyIndex    = -1;
+
+function captureHistory() {
+  // Register any new images before snapshotting
+  frames.forEach(f => { if (f.img) imageRegistry.set(f.id, f.img); });
+
+  const snapshot = {
+    frames:      frames.map(({ img, ...rest }) => ({ ...rest })),
+    annotations: JSON.parse(JSON.stringify(annotations)),
+  };
+
+  // Discard any redo tail when a new action branches off
+  history      = history.slice(0, historyIndex + 1);
+  history.push(snapshot);
+  if (history.length > MAX_HISTORY) history.shift();
+  else historyIndex++;
+
+  updateHistoryButtons();
+}
+
+function applySnapshot(snapshot) {
+  frames = snapshot.frames.map(f => ({ ...f, img: imageRegistry.get(f.id) || null }));
+  annotations = JSON.parse(JSON.stringify(snapshot.annotations));
+
+  // Keep the selection pointing at a frame that still exists
+  if (!frames.find(f => f.id === selectedFrameId)) {
+    selectedFrameId = frames.length > 0 ? frames[frames.length - 1].id : null;
+  }
+  selectedAnno = -1;
+  hoveredAnno  = -1;
+  updatePanel();
+  updateHistoryButtons();
+  render();
+}
+
+function undo() {
+  if (historyIndex <= 0) return;
+  historyIndex--;
+  applySnapshot(history[historyIndex]);
+}
+
+function redo() {
+  if (historyIndex >= history.length - 1) return;
+  historyIndex++;
+  applySnapshot(history[historyIndex]);
+}
+
+function updateHistoryButtons() {
+  const undoBtn = document.getElementById('undo-btn');
+  const redoBtn = document.getElementById('redo-btn');
+  undoBtn.disabled = historyIndex <= 0;
+  redoBtn.disabled = historyIndex >= history.length - 1;
+}
 
 // Drag state machine
 // type: 'imgPan' | 'frameMove' | 'frameResize' | 'anno' | 'annoResize' | 'draw'
@@ -878,6 +983,7 @@ function loadFile(file) {
     }
 
     updatePanel();
+    captureHistory();
     render();
   };
   image.src = url;
@@ -924,20 +1030,26 @@ function updatePanel() {
 zoomSlider.addEventListener('input', () => {
   const frame = getSelectedFrame();
   if (!frame) return;
-  frame.zoom        = parseInt(zoomSlider.value) / 100;
+  frame.zoom            = parseInt(zoomSlider.value) / 100;
   zoomValEl.textContent = zoomSlider.value + '%';
   render();
+});
+
+// Capture history once the user releases the slider (not on every tick)
+zoomSlider.addEventListener('change', () => {
+  if (getSelectedFrame()) captureHistory();
 });
 
 document.getElementById('reset-btn').addEventListener('click', () => {
   const frame = getSelectedFrame();
   if (!frame || !frame.img) return;
-  frame.fitScale       = Math.min(frame.w / frame.img.width, frame.h / frame.img.height);
-  frame.zoom           = 1;
-  frame.imgOffX        = 0;
-  frame.imgOffY        = 0;
-  zoomSlider.value     = 100;
+  frame.fitScale        = Math.min(frame.w / frame.img.width, frame.h / frame.img.height);
+  frame.zoom            = 1;
+  frame.imgOffX         = 0;
+  frame.imgOffY         = 0;
+  zoomSlider.value      = 100;
   zoomValEl.textContent = '100%';
+  captureHistory();
   render();
 });
 
@@ -975,9 +1087,11 @@ function updateCursor(c) {
 }
 
 document.getElementById('clear-btn').addEventListener('click', () => {
+  if (annotations.length === 0) return;
   annotations  = [];
   selectedAnno = -1;
   hoveredAnno  = -1;
+  captureHistory();
   render();
 });
 
@@ -1302,6 +1416,7 @@ previewCanvas.addEventListener('mousedown', e => {
     annotations.splice(delIdx, 1);
     selectedAnno = -1;
     hoveredAnno  = -1;
+    captureHistory();
     render();
     return;
   }
@@ -1429,6 +1544,7 @@ previewCanvas.addEventListener('mousedown', e => {
       frameId: selectedFrameId || null,
     });
     selectedAnno = annotations.length - 1;
+    captureHistory();
     render();
     setTool('select');
   }
@@ -1570,10 +1686,12 @@ previewCanvas.addEventListener('mouseup', () => {
         frameId: selectedFrameId || null,
       });
       selectedAnno = annotations.length - 1;
+      captureHistory();
     }
     drag.liveRect = null;
   }
   if (['imgPan', 'frameMove', 'frameResize', 'anno', 'annoResize'].includes(drag.type)) {
+    captureHistory();
     updateCursor(activeTool === 'select' ? 'default' : 'crosshair');
   }
   drag.active = false;
@@ -1594,12 +1712,20 @@ previewCanvas.addEventListener('mouseleave', () => {
 // ─── Keyboard shortcuts ───────────────────────────────────────────────────────
 
 document.addEventListener('keydown', e => {
-  if (frames.length === 0) return;
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  const mod = e.metaKey || e.ctrlKey;
+
+  // Undo / redo (available even before first frame)
+  if (mod && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+  if (mod && (e.key === 'Z' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
+
+  if (frames.length === 0) return;
 
   if ((e.key === 'Delete' || e.key === 'Backspace') && selectedAnno >= 0) {
     annotations.splice(selectedAnno, 1);
     selectedAnno = -1;
+    captureHistory();
     render();
   }
   if (e.key === 'Escape') {
@@ -1610,6 +1736,9 @@ document.addEventListener('keydown', e => {
     render();
   }
 });
+
+document.getElementById('undo-btn').addEventListener('click', undo);
+document.getElementById('redo-btn').addEventListener('click', redo);
 
 // ─── Full-resolution render (for export) ─────────────────────────────────────
 
