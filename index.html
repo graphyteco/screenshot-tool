@@ -783,6 +783,19 @@ function hitTestFrame(x, y) {
   return null;
 }
 
+function removeFrame(frameId) {
+  frames      = frames.filter(f => f.id !== frameId);
+  annotations = annotations.filter(a => a.frameId !== frameId);
+  if (selectedFrameId === frameId) {
+    selectedFrameId = frames.length > 0 ? frames[frames.length - 1].id : null;
+  }
+  selectedAnno = -1;
+  hoveredAnno  = -1;
+  captureHistory();
+  updatePanel();
+  render();
+}
+
 // ─── DOM references ───────────────────────────────────────────────────────────
 
 const uploadScreen  = document.getElementById('upload-screen');
@@ -1051,6 +1064,10 @@ function drawFrameImage(ctx, frame) {
   ctx.drawImage(frame.img, ix, iy, iw, ih);
 }
 
+function frameDeleteBtnPos(frame) {
+  return { x: frame.x + frame.w + 4, y: frame.y - 4 };
+}
+
 function drawFrameSelectionUI(ctx, frame) {
   // Selection outline
   ctx.strokeStyle = 'rgba(98,72,255,0.7)';
@@ -1087,6 +1104,10 @@ function drawFrameSelectionUI(ctx, frame) {
     ctx.arc(cx + dx, cy + dy, 2.2, 0, Math.PI * 2);
     ctx.fill();
   });
+
+  // Delete button — top-right corner
+  const db = frameDeleteBtnPos(frame);
+  drawDeleteButton(ctx, db.x, db.y);
 }
 
 function drawAnnotation(ctx, a, i, overlayOnly) {
@@ -1296,18 +1317,28 @@ previewCanvas.addEventListener('mousedown', e => {
   e.preventDefault();
   const p = canvasCoords(e);
 
-  // 1. Annotation delete buttons
+  // 1a. Frame delete button
+  const selFrame = getSelectedFrame();
+  if (selFrame) {
+    const fdb = frameDeleteBtnPos(selFrame);
+    if (Math.hypot(p.x - fdb.x, p.y - fdb.y) <= DEL_BTN_R + 4) {
+      removeFrame(selFrame.id);
+      return;
+    }
+  }
+
+  // 1b. Annotation delete buttons
   const delIdx = hitTestDeleteBtn(p.x, p.y);
   if (delIdx >= 0) {
     annotations.splice(delIdx, 1);
     selectedAnno = -1;
     hoveredAnno  = -1;
+    captureHistory();
     render();
     return;
   }
 
   if (activeTool === 'select') {
-    const selFrame = getSelectedFrame();
 
     // 2. Annotation resize handles (checked before frame handles so annotations on top can be grabbed)
     const annoHandleId = hitTestAnnoHandle(p.x, p.y, selectedAnno);
