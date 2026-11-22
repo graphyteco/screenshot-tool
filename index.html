@@ -396,6 +396,78 @@ input[type="range"]:active::-webkit-slider-thumb {
   background: linear-gradient(rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.08)), var(--bg);
 }
 
+/* ─── Screenshot ID fields ───────────────────────────────────────────────── */
+
+.id-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 56px;
+  gap: 6px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.field-label {
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.field input {
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-1);
+  background: transparent;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.field input:focus {
+  border-color: var(--brand);
+}
+
+.field input::placeholder {
+  color: var(--text-3);
+}
+
+.field-mono input,
+.id-preview {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.id-preview {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+
+.id-preview strong {
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.link-btn {
+  padding: 0;
+  border: none;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--brand);
+  background: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* ─── Tool buttons ───────────────────────────────────────────────────────── */
 
 .tools-grid {
@@ -557,8 +629,10 @@ input[type="range"]:active::-webkit-slider-thumb {
     <h2>Drop your screenshot here</h2>
     <p>PNG, JPG, or WebP — or <strong style="color:var(--text-2)">paste</strong> from clipboard</p>
     <button class="btn-upload" id="browse-btn">Choose File</button>
+    <p style="margin-top:14px">Updating a screenshot? <button class="link-btn" id="open-settings-upload">Open its settings file</button></p>
   </div>
   <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp">
+  <input type="file" id="settings-input" accept="application/json,.json" style="display:none">
 </div>
 
 <!-- Editor -->
@@ -597,6 +671,38 @@ input[type="range"]:active::-webkit-slider-thumb {
     </div>
 
     <div class="panel-body">
+
+      <!-- Screenshot ID and version -->
+      <div class="section" id="id-section">
+        <div class="section-label">Screenshot ID</div>
+        <div class="id-grid">
+          <label class="field">
+            <span class="field-label">Doc key</span>
+            <input id="id-doc" placeholder="WHK" maxlength="8" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="field field-mono">
+            <span class="field-label">Slot</span>
+            <input id="id-slot" placeholder="010" maxlength="3" inputmode="numeric" autocomplete="off">
+          </label>
+          <label class="field field-mono">
+            <span class="field-label">Ver</span>
+            <input id="id-version" value="1" inputmode="numeric" autocomplete="off">
+          </label>
+        </div>
+        <label class="field">
+          <span class="field-label">Captured from (URL)</span>
+          <input id="id-source" placeholder="https://www.relume.io/app/…" autocomplete="off" spellcheck="false">
+        </label>
+        <div class="id-preview" id="id-preview"></div>
+        <button class="btn btn-ghost" id="open-settings-btn">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1.5 3.5a1 1 0 0 1 1-1h3l1.5 1.5h3.5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1z"/>
+          </svg>
+          Open Settings File
+        </button>
+      </div>
+
+      <hr class="divider">
 
       <!-- Screenshot controls — visible when a frame is selected -->
       <div class="section" id="frame-section" style="display:none">
@@ -962,20 +1068,34 @@ document.addEventListener('paste', e => {
 });
 
 function loadFile(file) {
-  if (!file || !file.type.match(/^image\/(png|jpeg|webp)$/)) return;
+  if (!file) return;
+  if (file.type === 'application/json' || /\.json$/i.test(file.name || '')) { loadSettingsFile(file); return; }
+  if (!file.type.match(/^image\/(png|jpeg|webp)$/)) return;
   const url   = URL.createObjectURL(file);
   const image = new Image();
   image.onload = () => {
     URL.revokeObjectURL(url);
 
+    // A settings file leaves empty frames waiting for new captures: fill those first
+    if (replacingFrameId === null) {
+      const sel   = getSelectedFrame();
+      const empty = sel && !sel.img ? sel : frames.find(f => !f.img);
+      if (empty) replacingFrameId = empty.id;
+    }
+
     if (replacingFrameId !== null) {
       const frame = frames.find(f => f.id === replacingFrameId);
       if (frame) {
+        // An empty frame from a settings file keeps its saved zoom and position
+        const keepPlacement = !frame.img && frame.fromSettings;
         frame.img      = image;
         frame.fitScale = Math.min(frame.w / image.width, frame.h / image.height);
-        frame.zoom     = 1;
-        frame.imgOffX  = 0;
-        frame.imgOffY  = 0;
+        if (!keepPlacement) {
+          frame.zoom    = 1;
+          frame.imgOffX = 0;
+          frame.imgOffY = 0;
+        }
+        delete frame.fromSettings;
       }
       replacingFrameId = null;
 
@@ -1142,6 +1262,7 @@ function render(liveRect) {
     ctx.fillStyle = FRAME_BG;
     ctx.fillRect(frame.x, frame.y, frame.w, frame.h);
     if (frame.img) drawFrameImage(ctx, frame);
+    else drawEmptyFrameHint(ctx, frame);
     ctx.restore();
   });
 
@@ -1169,6 +1290,16 @@ function render(liveRect) {
   const selFrame = getSelectedFrame();
   if (selFrame) drawFrameSelectionUI(ctx, selFrame);
 
+  ctx.restore();
+}
+
+function drawEmptyFrameHint(ctx, frame) {
+  ctx.save();
+  ctx.fillStyle    = '#A8A8A8';
+  ctx.font         = '500 44px system-ui, -apple-system, sans-serif';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Drop or paste the new capture', frame.x + frame.w / 2, frame.y + frame.h / 2);
   ctx.restore();
 }
 
@@ -1822,12 +1953,147 @@ function renderFullRes() {
 
 // ─── Export ───────────────────────────────────────────────────────────────────
 
-document.getElementById('download-btn').addEventListener('click', () => {
-  const oc   = renderFullRes();
+function downloadHref(name, href) {
   const link = document.createElement('a');
-  link.download = 'relume-screenshot.jpg';
-  link.href     = oc.toDataURL('image/jpeg', 0.92);
+  link.download = name;
+  link.href     = href;
   link.click();
+}
+
+document.getElementById('download-btn').addEventListener('click', () => {
+  if (frames.some(f => !f.img)) {
+    alert('A frame is still empty. Drop or paste its new capture before downloading.');
+    return;
+  }
+  const oc   = renderFullRes();
+  const id   = shotId();
+  const base = id ? `${id}_v${shotVersion()}` : 'relume-screenshot';
+  downloadHref(base + '.jpg', oc.toDataURL('image/jpeg', 0.92));
+
+  if (id) {
+    // The settings file sits next to the image so the shot can be re-made from a new capture
+    const json = JSON.stringify(buildSettings(), null, 2);
+    const url  = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    setTimeout(() => { downloadHref(base + '.json', url); setTimeout(() => URL.revokeObjectURL(url), 2000); }, 300);
+  }
+});
+
+// ─── Screenshot ID, version and settings file ───────────────────────────────
+// ID   = DOC-SLOT, e.g. WHK-020: a doc key plus a slot numbered in tens in reading order.
+// File = WHK-020_v3.jpg + WHK-020_v3.json (the settings: frames, zoom, position, annotations, source).
+
+const SETTINGS_SCHEMA = 'relume-screenshot/1';
+const idDocEl     = document.getElementById('id-doc');
+const idSlotEl    = document.getElementById('id-slot');
+const idVersionEl = document.getElementById('id-version');
+const idSourceEl  = document.getElementById('id-source');
+const idPreviewEl = document.getElementById('id-preview');
+const settingsInput = document.getElementById('settings-input');
+
+function cleanDoc(v)  { return (v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8); }
+function cleanSlot(v) { const d = (v || '').replace(/\D/g, '').slice(0, 3); return d ? d.padStart(3, '0') : ''; }
+
+function shotVersion() {
+  const n = parseInt(idVersionEl.value, 10);
+  return n > 0 ? n : 1;
+}
+
+function shotId() {
+  const doc  = cleanDoc(idDocEl.value);
+  const slot = cleanSlot(idSlotEl.value);
+  return doc && slot ? `${doc}-${slot}` : '';
+}
+
+function updateIdPreview() {
+  const id = shotId();
+  idPreviewEl.innerHTML = id
+    ? `Saves as <strong>${id}_v${shotVersion()}.jpg</strong> + .json`
+    : 'Add a doc key and slot to name and version this shot.';
+}
+
+idDocEl.addEventListener('input', () => {
+  const pos = idDocEl.selectionStart;
+  idDocEl.value = cleanDoc(idDocEl.value);
+  idDocEl.setSelectionRange(pos, pos);
+  updateIdPreview();
+});
+idSlotEl.addEventListener('input', () => { idSlotEl.value = idSlotEl.value.replace(/\D/g, '').slice(0, 3); updateIdPreview(); });
+idSlotEl.addEventListener('blur',  () => { idSlotEl.value = cleanSlot(idSlotEl.value); updateIdPreview(); });
+idVersionEl.addEventListener('input', () => { idVersionEl.value = idVersionEl.value.replace(/\D/g, '').slice(0, 4); updateIdPreview(); });
+idVersionEl.addEventListener('blur',  () => { idVersionEl.value = shotVersion(); updateIdPreview(); });
+updateIdPreview();
+
+function buildSettings() {
+  const r = n => Math.round(n * 100) / 100;
+  return {
+    schema:     SETTINGS_SCHEMA,
+    id:         shotId(),
+    doc:        cleanDoc(idDocEl.value),
+    slot:       cleanSlot(idSlotEl.value),
+    version:    shotVersion(),
+    exportedAt: new Date().toISOString(),
+    sourceUrl:  idSourceEl.value.trim(),
+    canvas:     { width: CW, height: CH },
+    frames: frames.map(f => ({
+      x: r(f.x), y: r(f.y), w: r(f.w), h: r(f.h),
+      zoom: r(f.zoom), imgOffX: r(f.imgOffX), imgOffY: r(f.imgOffY),
+      capture: f.img ? { width: f.img.naturalWidth || f.img.width, height: f.img.naturalHeight || f.img.height } : null,
+    })),
+    annotations: annotations.map(a => {
+      const out = { type: a.type };
+      ['x', 'y', 'w', 'h', 'x1', 'y1', 'x2', 'y2'].forEach(k => { if (typeof a[k] === 'number') out[k] = r(a[k]); });
+      return out;
+    }),
+  };
+}
+
+function loadSettingsFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    let s;
+    try { s = JSON.parse(reader.result); } catch { s = null; }
+    if (!s || s.schema !== SETTINGS_SCHEMA || !Array.isArray(s.frames)) {
+      alert('That file isn\'t a Screenshot Framer settings file.');
+      return;
+    }
+    applySettings(s);
+  };
+  reader.readAsText(file);
+}
+
+function applySettings(s) {
+  // The ID stays; the version moves on, because what you make from here is the next version
+  idDocEl.value     = cleanDoc(s.doc);
+  idSlotEl.value    = cleanSlot(s.slot);
+  idVersionEl.value = (parseInt(s.version, 10) || 0) + 1;
+  idSourceEl.value  = s.sourceUrl || '';
+  updateIdPreview();
+
+  frames = s.frames.map(f => ({
+    ...createFrame(null, f.x, f.y, f.w, f.h),
+    zoom: f.zoom || 1, imgOffX: f.imgOffX || 0, imgOffY: f.imgOffY || 0,
+    fromSettings: true,
+  }));
+  annotations     = (s.annotations || []).map(a => ({ ...a }));
+  selectedFrameId = frames.length ? frames[0].id : null;
+  selectedAnno    = -1;
+  hoveredAnno     = -1;
+  replacingFrameId = null;
+
+  uploadScreen.style.display = 'none';
+  editorEl.style.display     = 'flex';
+  setupCanvas();
+  updatePanel();
+  captureHistory();
+  render();
+}
+
+function openSettingsPicker() { settingsInput.click(); }
+document.getElementById('open-settings-btn').addEventListener('click', openSettingsPicker);
+document.getElementById('open-settings-upload').addEventListener('click', openSettingsPicker);
+settingsInput.addEventListener('change', e => {
+  if (e.target.files[0]) loadSettingsFile(e.target.files[0]);
+  settingsInput.value = '';
 });
 
 document.getElementById('clipboard-btn').addEventListener('click', async () => {
