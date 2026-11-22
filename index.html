@@ -1029,14 +1029,15 @@ function updatePanel() {
   const frameSection = document.getElementById('frame-section');
   const noFrameHint  = document.getElementById('no-frame-hint');
 
+  // no-frame-hint was removed from the markup in 4756aad; guard so a missing hint can't stop rendering
   if (frame) {
     frameSection.style.display = '';
-    noFrameHint.style.display  = 'none';
+    if (noFrameHint) noFrameHint.style.display = 'none';
     zoomSlider.value           = Math.round(frame.zoom * 100);
     zoomValEl.textContent      = Math.round(frame.zoom * 100) + '%';
   } else {
     frameSection.style.display = 'none';
-    noFrameHint.style.display  = '';
+    if (noFrameHint) noFrameHint.style.display = '';
   }
 }
 
@@ -1090,7 +1091,8 @@ function setTool(t) {
   hoveredAnno  = -1;
   document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tool-btn-' + t).classList.add('active');
-  document.getElementById('tool-hint').textContent = TOOL_HINTS[t];
+  const toolHint = document.getElementById('tool-hint');
+  if (toolHint) toolHint.textContent = TOOL_HINTS[t];
   updateCursor(t === 'select' ? 'default' : 'crosshair');
   render();
 }
