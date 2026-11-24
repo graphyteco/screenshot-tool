@@ -819,7 +819,7 @@ input[type="range"]:active::-webkit-slider-thumb {
       <button class="link-btn" id="shots-connect-toggle">Connection</button>
     </div>
     <form id="shots-connect">
-      <p>The Framer reads and saves shots in Relume's Notion through the Framer server. Enter its address and passcode once; this browser remembers them.</p>
+      <p>Enter the Framer passcode once to see and save shots in Relume's Notion. This browser remembers it.</p>
       <input class="shots-input" id="api-url" placeholder="https://screenshot-framer-notion….workers.dev" autocomplete="off" spellcheck="false">
       <input class="shots-input" id="api-passcode" type="password" placeholder="Passcode" autocomplete="off">
       <button class="btn-upload" style="margin-top:0" type="submit">Connect</button>
@@ -2335,6 +2335,7 @@ document.getElementById('clipboard-btn').addEventListener('click', async () => {
 // all through the Framer server (worker/), which holds the Notion token.
 
 const API_KEY_URL  = 'framer-api';
+const API_DEFAULT  = 'https://screenshot-framer-notion.wispy-salad-6555.workers.dev';
 const API_KEY_PASS = 'framer-passcode';
 const shotsStatusEl = document.getElementById('shots-status');
 const shotsListEl   = document.getElementById('shots-list');
@@ -2352,8 +2353,8 @@ function stored(k)   { try { return localStorage.getItem(k) || ''; } catch { ret
 const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 async function api(path, opts = {}) {
-  const base = stored(API_KEY_URL).replace(/\/+$/, '');
-  if (!base) throw Object.assign(new Error('Not connected'), { code: 'connect' });
+  const base = (stored(API_KEY_URL) || API_DEFAULT).replace(/\/+$/, '');
+  if (!stored(API_KEY_PASS)) throw Object.assign(new Error('Not connected'), { code: 'connect' });
   const res = await fetch(base + path, { ...opts, headers: { ...(opts.headers || {}), 'x-framer-passcode': stored(API_KEY_PASS) } });
   if (res.status === 401) throw Object.assign(new Error('The passcode was refused'), { code: 'connect' });
   if (!res.ok) {
@@ -2381,7 +2382,7 @@ function setShotsStatus(msg, isError) {
 }
 
 function openConnect(msg) {
-  document.getElementById('api-url').value      = stored(API_KEY_URL);
+  document.getElementById('api-url').value      = stored(API_KEY_URL) || API_DEFAULT;
   document.getElementById('api-passcode').value = stored(API_KEY_PASS);
   shotsConnect.classList.add('open');
   setShotsStatus(msg || '', !!msg);
@@ -2553,7 +2554,7 @@ document.getElementById('save-notion-btn').addEventListener('click', async () =>
 // Start: a link like ?id=WHK-020 (the row's "Open in Framer") opens that shot; otherwise the list
 (function startShots() {
   const id = new URLSearchParams(location.search).get('id');
-  loadShots().then(() => { if (id && stored(API_KEY_URL)) openShot(id); });
+  loadShots().then(() => { if (id && stored(API_KEY_PASS)) openShot(id); });
 })();
 
 // ─── Theme toggle ─────────────────────────────────────────────────────────────
