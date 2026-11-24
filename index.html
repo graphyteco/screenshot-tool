@@ -75,10 +75,203 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  gap: 24px;
   height: 100vh;
+  padding: 56px 16px 48px;
+  overflow-y: auto;
   background: var(--bg);
   transition: background 0.2s;
+}
+
+/* ─── Shot list (Notion Screenshots database) ────────────────────────────── */
+
+#shots {
+  width: 100%;
+  max-width: 720px;
+}
+
+.shots-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.shots-head h1 {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.shots-input {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-1);
+  background: var(--surface);
+}
+
+.shots-input:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+
+#shots-search {
+  width: 220px;
+}
+
+.shots-status {
+  padding: 10px 0;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.shots-status.error {
+  color: #D14343;
+}
+
+#shots-list {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+#shots-list:empty {
+  display: none;
+}
+
+.shot-row {
+  display: grid;
+  grid-template-columns: 72px 92px 1fr auto auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 8px 14px 8px 8px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  color: var(--text-1);
+  background: none;
+  cursor: pointer;
+}
+
+.shot-row:last-child {
+  border-bottom: none;
+}
+
+.shot-row:hover {
+  background: var(--brand-subtle);
+}
+
+.shot-thumb {
+  width: 72px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--surface-2);
+}
+
+.shot-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 500;
+}
+
+.shot-doc {
+  overflow: hidden;
+  color: var(--text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shot-meta {
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pill {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.pill-current { color: #1F7A4D; background: rgba(31, 122, 77, 0.12); }
+.pill-stale   { color: #B25E09; background: rgba(178, 94, 9, 0.12); }
+.pill-new     { color: var(--brand); background: var(--brand-subtle); }
+
+#shots-connect {
+  display: none;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+#shots-connect.open {
+  display: flex;
+}
+
+#shots-connect p {
+  width: 100%;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+#api-url {
+  flex: 1;
+  min-width: 220px;
+}
+
+#pending-shot {
+  display: none;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.notion-shot {
+  display: none;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text-2);
+  background: var(--brand-subtle);
+}
+
+.notion-shot a,
+.notion-shot button {
+  border: none;
+  font: inherit;
+  color: var(--brand);
+  background: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+#save-notion-status {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+
+@media (max-width: 600px) {
+  .shot-row { grid-template-columns: 56px 1fr auto; }
+  .shot-row .shot-doc, .shot-row .shot-meta { display: none; }
+  .shot-thumb { width: 56px; height: 36px; }
+  #shots-search { width: 140px; }
+  #drop-zone { width: 100%; }
 }
 
 .upload-wordmark {
@@ -619,6 +812,22 @@ input[type="range"]:active::-webkit-slider-thumb {
       <path d="M12 8.5A5.5 5.5 0 1 1 5.5 2a4 4 0 0 0 6.5 6.5z"/>
     </svg>
   </button>
+  <section id="shots">
+    <div class="shots-head">
+      <h1>Screenshots</h1>
+      <input class="shots-input" id="shots-search" type="search" placeholder="Search ID or doc" autocomplete="off" spellcheck="false">
+      <button class="link-btn" id="shots-connect-toggle">Connection</button>
+    </div>
+    <form id="shots-connect">
+      <p>The Framer reads and saves shots in Relume's Notion through the Framer server. Enter its address and passcode once; this browser remembers them.</p>
+      <input class="shots-input" id="api-url" placeholder="https://screenshot-framer-notion….workers.dev" autocomplete="off" spellcheck="false">
+      <input class="shots-input" id="api-passcode" type="password" placeholder="Passcode" autocomplete="off">
+      <button class="btn-upload" style="margin-top:0" type="submit">Connect</button>
+    </form>
+    <div class="shots-status" id="shots-status"></div>
+    <div id="shots-list"></div>
+  </section>
+  <p id="pending-shot"></p>
   <div id="drop-zone">
     <div class="upload-icon">
       <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
@@ -675,6 +884,7 @@ input[type="range"]:active::-webkit-slider-thumb {
       <!-- Screenshot ID and version -->
       <div class="section" id="id-section">
         <div class="section-label">Screenshot ID</div>
+        <div class="notion-shot" id="notion-shot"></div>
         <div class="id-grid">
           <label class="field">
             <span class="field-label">Doc key</span>
@@ -772,6 +982,14 @@ input[type="range"]:active::-webkit-slider-thumb {
 
       <!-- Export -->
       <div class="section">
+        <div id="save-notion-group" style="display:none;flex-direction:column;gap:8px;margin-bottom:8px">
+          <label class="field">
+            <span class="field-label">What changed (changelog entry)</span>
+            <input id="save-changelog" placeholder="e.g. nova#6180 split the Publish button" autocomplete="off" spellcheck="false">
+          </label>
+          <button class="btn btn-orange" id="save-notion-btn">Save to Notion</button>
+          <div id="save-notion-status"></div>
+        </div>
         <div class="action-group">
           <button class="btn btn-orange" id="download-btn">
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -2111,6 +2329,232 @@ document.getElementById('clipboard-btn').addEventListener('click', async () => {
     console.error(err);
   }
 });
+
+// ─── Notion: the Screenshots database ─────────────────────────────────────────
+// The list of shots, opening one (settings + raw captures re-applied) and saving a new version,
+// all through the Framer server (worker/), which holds the Notion token.
+
+const API_KEY_URL  = 'framer-api';
+const API_KEY_PASS = 'framer-passcode';
+const shotsStatusEl = document.getElementById('shots-status');
+const shotsListEl   = document.getElementById('shots-list');
+const shotsSearchEl = document.getElementById('shots-search');
+const shotsConnect  = document.getElementById('shots-connect');
+const notionShotEl  = document.getElementById('notion-shot');
+const pendingShotEl = document.getElementById('pending-shot');
+const saveGroupEl   = document.getElementById('save-notion-group');
+const saveStatusEl  = document.getElementById('save-notion-status');
+let allShots    = [];
+let currentShot = null;   // the Notion row being edited, or null for a one-off
+
+function store(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} }
+function stored(k)   { try { return localStorage.getItem(k) || ''; } catch { return ''; } }
+const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+async function api(path, opts = {}) {
+  const base = stored(API_KEY_URL).replace(/\/+$/, '');
+  if (!base) throw Object.assign(new Error('Not connected'), { code: 'connect' });
+  const res = await fetch(base + path, { ...opts, headers: { ...(opts.headers || {}), 'x-framer-passcode': stored(API_KEY_PASS) } });
+  if (res.status === 401) throw Object.assign(new Error('The passcode was refused'), { code: 'connect' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Server error ${res.status}`);
+  }
+  return res;
+}
+
+// Notion file links come through the server so the canvas can use them
+async function fetchImage(url) {
+  const res  = await api('/api/file?u=' + encodeURIComponent(url));
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload  = () => resolve(img);
+    img.onerror = () => reject(new Error('Couldn\'t read an image from Notion'));
+    img.src = URL.createObjectURL(blob);
+  });
+}
+
+function setShotsStatus(msg, isError) {
+  shotsStatusEl.textContent = msg || '';
+  shotsStatusEl.classList.toggle('error', !!isError);
+}
+
+function openConnect(msg) {
+  document.getElementById('api-url').value      = stored(API_KEY_URL);
+  document.getElementById('api-passcode').value = stored(API_KEY_PASS);
+  shotsConnect.classList.add('open');
+  setShotsStatus(msg || '', !!msg);
+}
+
+shotsConnect.addEventListener('submit', e => {
+  e.preventDefault();
+  store(API_KEY_URL,  document.getElementById('api-url').value.trim());
+  store(API_KEY_PASS, document.getElementById('api-passcode').value);
+  shotsConnect.classList.remove('open');
+  loadShots();
+});
+document.getElementById('shots-connect-toggle').addEventListener('click', () =>
+  shotsConnect.classList.contains('open') ? shotsConnect.classList.remove('open') : openConnect());
+
+async function loadShots() {
+  setShotsStatus('Loading screenshots from Notion…');
+  try {
+    const data = await (await api('/api/shots')).json();
+    allShots = data.shots || [];
+    setShotsStatus(allShots.length ? '' : 'No screenshots in the database yet.');
+    renderShots();
+  } catch (err) {
+    allShots = [];
+    renderShots();
+    if (err.code === 'connect') openConnect(err.message === 'Not connected' ? '' : err.message);
+    else setShotsStatus('Couldn\'t load screenshots: ' + err.message, true);
+  }
+}
+
+function renderShots() {
+  const q = shotsSearchEl.value.trim().toLowerCase();
+  const list = allShots.filter(sh => !q || sh.id.toLowerCase().includes(q) ||
+    (sh.docs || []).some(d => d.title.toLowerCase().includes(q)));
+  shotsListEl.innerHTML = list.map(sh => {
+    const doc  = (sh.docs || []).map(d => d.title).join(', ') || 'No doc linked';
+    const pill = !sh.version ? '<span class="pill pill-new">To capture</span>'
+      : sh.status === 'Stale' ? '<span class="pill pill-stale">Stale</span>'
+      : '<span class="pill pill-current">Current</span>';
+    const meta = sh.version ? `v${sh.version}${sh.captured ? ' · ' + sh.captured : ''}` : '';
+    return `<button class="shot-row" data-id="${esc(sh.id)}">
+      <img class="shot-thumb" alt="" data-src="${esc(sh.image?.url || '')}">
+      <span class="shot-id">${esc(sh.id)}</span>
+      <span class="shot-doc">${esc(doc)}</span>
+      <span class="shot-meta">${esc(meta)}</span>
+      ${pill}
+    </button>`;
+  }).join('');
+  shotsListEl.querySelectorAll('.shot-thumb[data-src]').forEach(async img => {
+    if (!img.dataset.src) return;
+    try { img.src = (await fetchImage(img.dataset.src)).src; } catch {}
+  });
+}
+
+shotsSearchEl.addEventListener('input', renderShots);
+shotsListEl.addEventListener('click', e => {
+  const row = e.target.closest('.shot-row');
+  if (row) openShot(row.dataset.id);
+});
+
+function showNotionShot() {
+  const on = !!currentShot;
+  [idDocEl, idSlotEl, idVersionEl].forEach(el => { el.readOnly = on; });
+  saveGroupEl.style.display = on ? 'flex' : 'none';
+  saveStatusEl.textContent  = '';
+  if (!on) { notionShotEl.style.display = 'none'; pendingShotEl.style.display = 'none'; return; }
+  const doc = (currentShot.docs || [])[0];
+  notionShotEl.innerHTML = `<strong>${esc(currentShot.id)}</strong> from Notion` +
+    (doc ? ` · <a href="${esc(doc.url)}" target="_blank" rel="noopener">${esc(doc.title)}</a>` : '') +
+    ` · <a href="${esc(currentShot.url)}" target="_blank" rel="noopener">Row</a> · <button type="button" id="back-to-list">All shots</button>`;
+  notionShotEl.style.display = 'block';
+  document.getElementById('back-to-list').addEventListener('click', backToList);
+}
+
+function backToList() {
+  if (!confirm('Leave this screenshot? Anything not saved to Notion is lost.')) return;
+  currentShot = null;
+  frames = []; annotations = []; selectedFrameId = null;
+  showNotionShot();
+  window.history.replaceState(null, '', location.pathname);
+  editorEl.style.display     = 'none';
+  uploadScreen.style.display = 'flex';
+  loadShots();
+}
+
+async function openShot(id) {
+  setShotsStatus(`Opening ${id}…`);
+  try {
+    const shot = await (await api('/api/shots/' + encodeURIComponent(id))).json();
+    currentShot = shot;
+    window.history.replaceState(null, '', '?id=' + encodeURIComponent(id));
+    const [docKey, slot] = shot.id.split('-');
+
+    if (shot.settingsJson && shot.settingsJson.schema === SETTINGS_SCHEMA) {
+      applySettings(shot.settingsJson);   // opens the editor with empty frames in place
+      // Put the saved raw captures back into their frames, so highlights and crop can change without a retake
+      for (let i = 0; i < shot.captures.length && i < frames.length; i++) {
+        const img = await fetchImage(shot.captures[i].url);
+        const f = frames[i];
+        f.img = img;
+        f.fitScale = Math.min(f.w / img.width, f.h / img.height);
+        delete f.fromSettings;
+      }
+      updatePanel(); captureHistory(); render();
+      if (shot.captures.length < frames.length) {
+        saveStatusEl.textContent = 'This version has no saved capture: drop a new one into the empty frame.';
+      }
+    } else {
+      // A new record (placeholder in the doc): take the first capture
+      idDocEl.value  = cleanDoc((shot.docs?.[0]?.key) || docKey);
+      idSlotEl.value = cleanSlot(slot);
+      idSourceEl.value = shot.sourceUrl || '';
+      pendingShotEl.textContent = `Capturing ${shot.id}: drop or paste its screenshot below.`;
+      pendingShotEl.style.display = 'block';
+    }
+    idVersionEl.value = (shot.version || 0) + 1;
+    updateIdPreview();
+    showNotionShot();
+    if (!shot.settingsJson) { notionShotEl.style.display = 'block'; }
+    setShotsStatus('');
+  } catch (err) {
+    currentShot = null;
+    showNotionShot();
+    if (err.code === 'connect') openConnect(err.message === 'Not connected' ? '' : err.message);
+    else setShotsStatus(`Couldn't open ${id}: ${err.message}`, true);
+  }
+}
+
+function canvasBlob(canvas, type, quality) {
+  return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+}
+
+async function captureBlob(img) {
+  const c = document.createElement('canvas');
+  c.width  = img.naturalWidth  || img.width;
+  c.height = img.naturalHeight || img.height;
+  c.getContext('2d').drawImage(img, 0, 0);
+  return canvasBlob(c, 'image/png');
+}
+
+document.getElementById('save-notion-btn').addEventListener('click', async () => {
+  if (!currentShot) return;
+  if (frames.some(f => !f.img)) { alert('A frame is still empty. Drop or paste its capture first.'); return; }
+  const btn = document.getElementById('save-notion-btn');
+  btn.disabled = true;
+  saveStatusEl.textContent = 'Saving to Notion…';
+  try {
+    const form = new FormData();
+    form.append('image', await canvasBlob(renderFullRes(), 'image/jpeg', 0.92), 'shot.jpg');
+    form.append('settings', new Blob([JSON.stringify(buildSettings(), null, 2)], { type: 'application/json' }), 'settings.json');
+    for (let i = 0; i < frames.length; i++) form.append(`capture${i + 1}`, await captureBlob(frames[i].img), `capture${i + 1}.png`);
+    form.append('version', String(shotVersion()));
+    form.append('sourceUrl', idSourceEl.value.trim());
+    form.append('changelog', document.getElementById('save-changelog').value.trim());
+    const out = await (await api(`/api/shots/${encodeURIComponent(currentShot.id)}/versions`, { method: 'POST', body: form })).json();
+    currentShot.version = out.version;
+    idVersionEl.value = out.version + 1;
+    updateIdPreview();
+    saveStatusEl.innerHTML = `Saved <strong>${esc(out.file)}</strong> to the <a href="${esc(out.row)}" target="_blank" rel="noopener">row</a>. ` +
+      (out.swapped.length ? `Updated the image in ${esc(out.swapped.map(s => s.doc).join(', '))}.`
+                          : 'No image for this ID was found in the doc, so the doc is unchanged.');
+  } catch (err) {
+    saveStatusEl.textContent = 'Not saved: ' + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// Start: a link like ?id=WHK-020 (the row's "Open in Framer") opens that shot; otherwise the list
+(function startShots() {
+  const id = new URLSearchParams(location.search).get('id');
+  loadShots().then(() => { if (id && stored(API_KEY_URL)) openShot(id); });
+})();
 
 // ─── Theme toggle ─────────────────────────────────────────────────────────────
 

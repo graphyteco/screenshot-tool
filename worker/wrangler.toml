@@ -1,0 +1,13 @@
+name = "screenshot-framer-notion"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+# Relume Notion: Screenshots database and the help docs (Docs (Publish)) data sources
+SHOTS_DS = "4205c3c8-064a-81a3-84db-000b9345a3aa"
+DOCS_DS = "3345c3c8-064a-80d2-9307-000bc5b54eef"
+ALLOWED_ORIGINS = "https://graphyteco.github.io,http://localhost:4444"
+
+# Secrets, set with `npx wrangler secret put <NAME>` (never in this file):
+#   NOTION_TOKEN     Matt's Notion personal access token (Relume workspace)
+#   FRAMER_PASSCODE  the passcode the Framer asks for once and sends with every call
