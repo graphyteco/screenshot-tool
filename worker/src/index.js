@@ -47,9 +47,14 @@ export default {
 async function notion(env, path, { method = 'GET', body, form } = {}) {
   const headers = { Authorization: `Bearer ${env.NOTION_TOKEN}`, 'Notion-Version': NOTION_VERSION };
   if (body) headers['Content-Type'] = 'application/json';
-  const res = await fetch(path.startsWith('http') ? path : NOTION + path, {
-    method, headers, body: form || (body ? JSON.stringify(body) : undefined),
-  });
+  let res;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    res = await fetch(path.startsWith('http') ? path : NOTION + path, {
+      method, headers, body: form || (body ? JSON.stringify(body) : undefined),
+    });
+    if (res.status !== 429) break;
+    await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const e = new Error(`Notion ${method} ${path.replace(NOTION, '')}: ${data.message || res.status}`);
@@ -68,7 +73,7 @@ const fileOf = (files) => {
 
 function shotFromPage(p) {
   const pr = p.properties;
-  return {
+  const shot = {
     pageId: p.id,
     url: p.url,
     id: text(pr.ID?.title),
@@ -84,8 +89,20 @@ function shotFromPage(p) {
     captures: (pr['Settings file']?.files || []).filter((f) => /_capture\d+\./i.test(f.name))
       .map((f) => ({ name: f.name, url: f.type === 'external' ? f.external.url : f.file?.url }))
       .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })),
+    docBlock: pr['Doc block']?.url || '',
     edited: p.last_edited_time,
   };
+  // The doc's title and Webflow status come in as rollups, so listing needs no extra Notion calls.
+  const titles = pr['Doc title']?.rollup?.array || [];
+  const statuses = pr['Doc status']?.rollup?.array || [];
+  shot.docs = shot.docIds.map((docId, i) => ({
+    id: docId,
+    title: text(titles[i]?.title) || '(untitled doc)',
+    status: statuses[i]?.select?.name || '',
+    key: shot.id.split('-')[0],
+    url: `https://www.notion.so/${docId.replace(/-/g, '')}`,
+  }));
+  return shot;
 }
 
 async function queryShots(env, filter) {
@@ -102,28 +119,10 @@ async function queryShots(env, filter) {
   return out;
 }
 
-async function docInfo(env, docId, cache) {
-  if (!cache.has(docId)) {
-    cache.set(docId, notion(env, `/pages/${docId}`).then((p) => {
-      if (p.parent?.data_source_id?.replace(/-/g, '') !== env.DOCS_DS.replace(/-/g, '')) {
-        return { id: docId, title: '(not a help doc)', key: '', url: p.url, foreign: true };
-      }
-      return { id: docId, title: text(p.properties.Title?.title), key: text(p.properties['Doc key']?.rich_text), url: p.url };
-    }));
-  }
-  return cache.get(docId);
-}
-
-async function withDocs(env, shots) {
-  const cache = new Map();
-  for (const s of shots) s.docs = await Promise.all(s.docIds.map((id) => docInfo(env, id, cache)));
-  return shots;
-}
-
 // ─── Routes ────────────────────────────────────────────────────────────────────
 
 async function listShots(env) {
-  return withDocs(env, await queryShots(env));
+  return queryShots(env);
 }
 
 async function findShot(env, id) {
@@ -133,7 +132,7 @@ async function findShot(env, id) {
 }
 
 async function getShot(env, id) {
-  const [shot] = await withDocs(env, [await findShot(env, id)]);
+  const shot = await findShot(env, id);
   // The settings file is small JSON: hand it over inline so the Framer can re-apply it.
   if (shot.settings?.url) {
     const res = await fetch(shot.settings.url);
@@ -150,8 +149,7 @@ async function uploadFile(env, file, filename, contentType) {
   return up.id;
 }
 
-// Saves a new version: uploads image + settings, updates the row, then swaps the doc's
-// image block for this ID (a placeholder or an older version) to the new image.
+// Saves a new version: uploads image + settings and updates the row. Never touches the docs.
 async function saveVersion(env, id, form) {
   const shot = await findShot(env, id);
   const image = form.get('image');
@@ -188,37 +186,9 @@ async function saveVersion(env, id, form) {
   if (changelog) props['Changelog entry'] = { rich_text: [{ text: { content: String(changelog).slice(0, 2000) } }] };
   await notion(env, `/pages/${shot.pageId}`, { method: 'PATCH', body: { properties: props } });
 
-  const swapped = [];
-  for (const docId of shot.docIds) {
-    const doc = await docInfo(env, docId, new Map());
-    if (doc.foreign) continue;
-    for (const blockId of await findImageBlocks(env, docId, id)) {
-      await notion(env, `/blocks/${blockId}`, { method: 'PATCH', body: { image: { file_upload: { id: imageUpload } } } });
-      swapped.push({ doc: doc.title, blockId });
-    }
-  }
-  return { id, version, file: `${base}.${ext}`, swapped, row: shot.url };
-}
-
-// Image blocks in a doc whose file is named for this ID (WHK-020_v0.png placeholder, WHK-020_v3.jpg…).
-async function findImageBlocks(env, blockId, id, depth = 0, found = []) {
-  const re = new RegExp(`(^|/)${id.replace(/[-]/g, '\\-')}_v\\d+\\.(png|jpe?g|webp)(\\?|$)`, 'i');
-  let cursor;
-  do {
-    const data = await notion(env, `/blocks/${blockId}/children?page_size=100${cursor ? `&start_cursor=${cursor}` : ''}`);
-    for (const b of data.results) {
-      if (b.type === 'image') {
-        const src = b.image.type === 'external' ? b.image.external.url : b.image.file?.url || '';
-        let path = '';
-        try { path = decodeURIComponent(new URL(src).pathname); } catch {}
-        if (re.test(path)) found.push(b.id);
-      } else if (b.has_children && depth < 3 && b.type !== 'child_page' && b.type !== 'child_database') {
-        await findImageBlocks(env, b.id, id, depth + 1, found);
-      }
-    }
-    cursor = data.has_more ? data.next_cursor : undefined;
-  } while (cursor);
-  return found;
+  // The Screenshots database is a reference only: the help docs themselves are never written to
+  // (Active docs are live on Webflow through Whalesync). Swapping a doc's image stays a person's call.
+  return { id, version, file: `${base}.${ext}`, row: shot.url };
 }
 
 // Notion's file links are signed S3 URLs without CORS headers; the Framer draws them on a canvas,

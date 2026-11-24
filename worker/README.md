@@ -12,8 +12,8 @@ Live at https://screenshot-framer-notion.wispy-salad-6555.workers.dev (Cloudflar
 - `GET /api/shots/WHK-020`: one row, plus its settings file inline and its raw captures.
 - `POST /api/shots/WHK-020/versions` (multipart: `image`, `settings`, `capture1…n`, `version`, `sourceUrl`, `changelog`):
   uploads `WHK-020_vN.jpg`, `WHK-020_vN.json` and the captures, then updates the row (Version, Captured, Status = Current,
-  Image, Settings file, Source URL, Changelog entry). After that, any image in the linked doc whose file is named
-  `WHK-020_v*` (the placeholder `WHK-020_v0.png` or an older version) is swapped for the new image.
+  Image, Settings file, Source URL, Changelog entry). It never writes to the help docs: the database is a
+  reference, and swapping a doc's image is done by a person.
 - `GET /api/file?u=…`: passes a Notion file through, because Notion's file links have no CORS headers.
 
 ## Deploy

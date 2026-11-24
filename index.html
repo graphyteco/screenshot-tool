@@ -2451,7 +2451,7 @@ function showNotionShot() {
   if (!on) { notionShotEl.style.display = 'none'; pendingShotEl.style.display = 'none'; return; }
   const doc = (currentShot.docs || [])[0];
   notionShotEl.innerHTML = `<strong>${esc(currentShot.id)}</strong> from Notion` +
-    (doc ? ` · <a href="${esc(doc.url)}" target="_blank" rel="noopener">${esc(doc.title)}</a>` : '') +
+    (doc ? ` · <a href="${esc(currentShot.docBlock || doc.url)}" target="_blank" rel="noopener">${esc(doc.title)}</a>` + (doc.status ? ` (${esc(doc.status)})` : '') : '') +
     ` · <a href="${esc(currentShot.url)}" target="_blank" rel="noopener">Row</a> · <button type="button" id="back-to-list">All shots</button>`;
   notionShotEl.style.display = 'block';
   document.getElementById('back-to-list').addEventListener('click', backToList);
