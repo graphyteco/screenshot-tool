@@ -193,7 +193,7 @@ async function saveVersion(env, id, form) {
     const doc = await docInfo(env, docId, new Map());
     if (doc.foreign) continue;
     for (const blockId of await findImageBlocks(env, docId, id)) {
-      await notion(env, `/blocks/${blockId}`, { method: 'PATCH', body: { image: { type: 'file_upload', file_upload: { id: imageUpload } } } });
+      await notion(env, `/blocks/${blockId}`, { method: 'PATCH', body: { image: { file_upload: { id: imageUpload } } } });
       swapped.push({ doc: doc.title, blockId });
     }
   }

@@ -4,6 +4,8 @@ The Screenshot Framer is a static page, and Notion's API can't be called from a 
 small Worker sits between them and holds the Notion token. It only touches Relume's Screenshots
 database and the help docs (Docs (Publish)) its rows link to.
 
+Live at https://screenshot-framer-notion.wispy-salad-6555.workers.dev (Cloudflare account matt@graphytedesign.com).
+
 ## Endpoints (all need the `x-framer-passcode` header)
 
 - `GET /api/shots`: every row in Screenshots, with its doc's title and key.
